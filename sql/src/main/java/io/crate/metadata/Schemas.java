@@ -37,6 +37,7 @@ import io.crate.metadata.sys.SysSchemaInfo;
 import io.crate.metadata.table.Operation;
 import io.crate.metadata.table.SchemaInfo;
 import io.crate.metadata.table.TableInfo;
+import io.crate.metadata.view.ViewsMetaData;
 import org.elasticsearch.cluster.ClusterChangedEvent;
 import org.elasticsearch.cluster.ClusterStateListener;
 import org.elasticsearch.cluster.metadata.MetaData;
@@ -88,6 +89,21 @@ public class Schemas extends AbstractLifecycleComponent implements Iterable<Sche
         this.builtInSchemas = builtInSchemas;
         this.defaultTemplateService = new DefaultTemplateService(settings, clusterService);
     }
+
+    @Nullable
+    public TableInfo getTableInfoOrNull(TableIdent tableIdent, Operation operation) {
+        SchemaInfo schemaInfo = schemas.get(tableIdent.schema());
+        if (schemaInfo == null) {
+            return null;
+        }
+        TableInfo tableInfo = schemaInfo.getTableInfo(tableIdent.name());
+        if (tableInfo == null) {
+            return null;
+        }
+        Operation.blockedRaiseException(tableInfo, operation);
+        return tableInfo;
+    }
+
 
     /**
      * @param ident the table ident to get a TableInfo for
@@ -270,5 +286,21 @@ public class Schemas extends AbstractLifecycleComponent implements Iterable<Sche
 
     @Override
     protected void doClose() {
+    }
+
+    /**
+     * @throws SchemaUnknownException if the view was not found and no such schema exists
+     */
+    @Nullable
+    public String resolveView(TableIdent tableIdent) {
+        ViewsMetaData views = clusterService.state().metaData().custom(ViewsMetaData.TYPE);
+        String query = views == null ? null : views.get(tableIdent);
+        if (query == null) {
+            if (!schemas.containsKey(tableIdent.schema())) {
+                throw new SchemaUnknownException(tableIdent.schema());
+            }
+            return null;
+        }
+        return query;
     }
 }

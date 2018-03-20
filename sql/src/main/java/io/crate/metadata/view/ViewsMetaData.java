@@ -177,6 +177,11 @@ public class ViewsMetaData extends AbstractNamedDiffable<MetaData.Custom> implem
         return new RemoveResult(new ViewsMetaData(updatedQueryByName), missing);
     }
 
+    @Nullable
+    public String get(TableIdent tableIdent) {
+        return queryByName.get(tableIdent.fqn());
+    }
+
     public class RemoveResult {
         private final ViewsMetaData updatedViews;
         private final List<TableIdent> missing;
