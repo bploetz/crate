@@ -92,7 +92,12 @@ public class SQLPrinterTest extends CrateDummyClusterServiceUnitTest {
 
             // with scalar subquery
             $("select (select \"user\" from t1 limit 1), x from t1",
-                "SELECT (SELECT doc.t1.\"user\" FROM doc.t1 LIMIT 1), doc.t1.x FROM doc.t1")
+                "SELECT (SELECT doc.t1.\"user\" FROM doc.t1 LIMIT 1), doc.t1.x FROM doc.t1"),
+
+            $("select 1", "SELECT 1 FROM empty_row()"),
+            $("select * from unnest([1, 2])", "SELECT col1 FROM unnest([1, 2])"),
+            $("select col1 as x from unnest([1, 2])", "SELECT col1 AS x FROM unnest([1, 2])"),
+            $("select col1 as x from unnest([1, 2]) t", "SELECT col1 AS x FROM unnest([1, 2]) AS t")
         );
     }
 }

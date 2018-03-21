@@ -33,12 +33,14 @@ import io.crate.analyze.CreateTableStatementAnalyzer;
 import io.crate.analyze.NumberOfShards;
 import io.crate.analyze.ParamTypeHints;
 import io.crate.analyze.ParameterContext;
+import io.crate.analyze.SQLPrinter;
 import io.crate.analyze.expressions.ExpressionAnalysisContext;
 import io.crate.analyze.expressions.ExpressionAnalyzer;
 import io.crate.analyze.expressions.SubqueryAnalyzer;
 import io.crate.analyze.relations.AnalyzedRelation;
 import io.crate.analyze.relations.FullQualifiedNameFieldProvider;
 import io.crate.analyze.relations.ParentRelations;
+import io.crate.analyze.relations.QueriedRelation;
 import io.crate.analyze.relations.RelationAnalyzer;
 import io.crate.analyze.relations.RelationNormalizer;
 import io.crate.analyze.relations.StatementAnalysisContext;
@@ -52,6 +54,7 @@ import io.crate.execution.ddl.RepositoryService;
 import io.crate.execution.dsl.projection.builder.ProjectionBuilder;
 import io.crate.execution.engine.pipeline.TopN;
 import io.crate.expression.symbol.Symbol;
+import io.crate.expression.symbol.format.SymbolPrinter;
 import io.crate.expression.udf.UserDefinedFunctionService;
 import io.crate.metadata.FulltextAnalyzerResolver;
 import io.crate.metadata.Functions;
@@ -150,6 +153,7 @@ public class SQLExecutor {
     private final SessionContext sessionContext;
     private final TransactionContext transactionContext;
     private final Random random;
+    private final SQLPrinter sqlPrinter;
 
     /**
      * Shortcut for {@link #getPlannerContext(ClusterState, Random)}
@@ -420,6 +424,7 @@ public class SQLExecutor {
                         SessionContext sessionContext,
                         Random random) {
         this.functions = functions;
+        this.sqlPrinter = new SQLPrinter(new SymbolPrinter(functions));
         this.analyzer = analyzer;
         this.planner = planner;
         this.relAnalyzer = relAnalyzer;
@@ -440,7 +445,11 @@ public class SQLExecutor {
     }
 
     public <T extends AnalyzedStatement> T analyze(String statement) {
-        return analyze(statement, ParameterContext.EMPTY);
+        T analyzedStatement = analyze(statement, ParameterContext.EMPTY);
+        if (analyzedStatement instanceof QueriedRelation) {
+            analyze(sqlPrinter.format(analyzedStatement), ParameterContext.EMPTY);
+        }
+        return analyzedStatement;
     }
 
     public <T extends AnalyzedStatement> T analyze(String statement, Object[] arguments) {
